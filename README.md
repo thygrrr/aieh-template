@@ -116,6 +116,9 @@ Quitting the test scene requires **holding `ui_exit` (Black button / Back / F10)
 `ui_exit` events so `GameInput`'s instant quit doesn't fire there, letting
 you see the action highlight; real gameplay scenes don't intercept it, so
 games built on this template still quit immediately as GAME_SPEC.md requires.
+While `GameInput.ui_exit_enabled` is off (currently is — stuck black button),
+the hold-to-quit is disabled too (a stuck-down button would trigger it by
+itself); quit by holding a Start button for 3 seconds instead.
 Replace `run/main_scene` in `project.godot` when you start building your game.
 
 ## Raw input debug scene
@@ -199,7 +202,10 @@ changes.)
 
 - `ui_exit` is implemented by the `GameInput` autoload
   (`scenes/game_input.tscn`) and quits immediately — mandatory per
-  GAME_SPEC.md.
+  GAME_SPEC.md. **Temporarily disabled** (`ui_exit_enabled = false` on
+  `scenes/game_input.tscn`) because the cabinet's black button is stuck in
+  the down position; quit via the pause overlay (hold Start 3 s) meanwhile,
+  and re-enable the flag once the hardware is fixed.
 - The project runs fullscreen at 1920×1080 (`canvas_items` stretch, `expand`).
 - `game.json` at the project root is the metadata template — edit it and copy
   it into your upload folder.

@@ -25,7 +25,9 @@ extends Node
 #   the button (including the press that opened the overlay) quits.
 # - Quits immediately on ui_exit, as GD_ArcadeLauncher's GAME_SPEC.md
 #   requires (the black center button on the cabinet, Back/View on a pad,
-#   F10 on keyboard).
+#   F10 on keyboard) — unless ui_exit_enabled is off. It is currently OFF
+#   in scenes/game_input.tscn: the cabinet's black button is stuck down,
+#   so quitting goes through the pause overlay (hold Start) instead.
 
 const CABINET_PAD_PREFIX := "Twin USB"
 # Panel buttons A/B/C/D/blue/green = raw b0-b5 -> A/B/X/Y/LB/RB; the black
@@ -61,6 +63,12 @@ const PAUSE_QUIT_HOLD_SECONDS := 3.0
 ## games that implement their own pause menu.
 @export var pause_overlay_enabled := true: set = set_pause_overlay_enabled
 
+## Instant quit on ui_exit (black cabinet button / Back / F10), required by
+## GAME_SPEC.md. Temporarily OFF in scenes/game_input.tscn because the
+## cabinet's black button is stuck in the down position — quit via the pause
+## overlay (hold Start 3 s) instead. Re-enable once the hardware is fixed.
+@export var ui_exit_enabled := true
+
 # Device ids currently driving each player's joypad bindings (read-only;
 # managed by _reassign_devices). A player whose device id has no connected
 # pad simply receives no joypad input.
@@ -89,7 +97,7 @@ func _ready() -> void:
 		_apply_pooling()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_exit"):
+	if ui_exit_enabled and event.is_action_pressed("ui_exit"):
 		get_tree().quit()
 		return
 	for action in PAUSE_ACTIONS:

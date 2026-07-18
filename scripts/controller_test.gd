@@ -146,7 +146,14 @@ func _process(delta: float) -> void:
 		label.text = ("[#] " if pressed else "[ ] ") + action
 		label.add_theme_color_override("font_color", COLOR_PRESSED if pressed else COLOR_IDLE)
 
-	if Input.is_action_pressed("ui_exit"):
+	if not GameInput.ui_exit_enabled:
+		# The cabinet's black button is stuck down, so a ui_exit hold would
+		# fire on its own — the grid still shows the action, but quitting
+		# goes through the pause overlay instead.
+		_exit_hold = 0.0
+		_exit_label.text = "ui_exit disabled (GameInput.ui_exit_enabled) — hold Start for 3 seconds to quit"
+		_exit_label.add_theme_color_override("font_color", COLOR_IDLE)
+	elif Input.is_action_pressed("ui_exit"):
 		_exit_hold += delta
 		if _exit_hold >= EXIT_HOLD_SECONDS:
 			get_tree().quit()
