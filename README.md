@@ -3,42 +3,74 @@
 Godot template preconfigured for the CY-1121 arcade cabinet and the
 [GD_ArcadeLauncher](https://github.com/thygrrr/GD_ArcadeLauncher) upload spec.
 
-## Cabinet input map
+## Input map
 
-The CY-1121 panel enumerates as **two** USB joypads named "Twin USB Gamepad" —
-the left bank is one Godot `device`, the right bank the other. All actions are
-defined in the project Input Map (Project Settings → Input Map), with keyboard
-fallbacks for desktop testing.
+All actions live in the project Input Map (Project Settings → Input Map).
+Joypad bindings use standard (SDL semantic) button indices, so any ordinary
+gamepad works out of the box for local development. The CY-1121 panel
+enumerates as two unrecognized "Twin USB Gamepad" devices; the `GameInput`
+autoload (`scenes/game_input.tscn`) installs an SDL mapping for them at
+runtime so both banks also present as standard gamepads — one binding set
+serves cabinet and desktop.
 
-| Action | Cabinet (raw index) | Keyboard fallback |
-|---|---|---|
-| `p1_left/right/up/down` | Device 0 stick, axis 0 (X) / axis 1 (Y) | Arrow keys |
-| `p1_button1`–`p1_button6` | Device 0 buttons 0–5 | Z X C V B N |
-| `p1_start` | Device 0 button 9 | 1 |
-| `p2_left/right/up/down` | Device 1 stick, axis 0 / axis 1 | A D W S |
-| `p2_button1`–`p2_button6` | Device 1 buttons 0–5 | U I O J K L |
-| `p2_start` | Device 1 button 9 | 2 |
-| `ui_exit` | Any device, button 8 (Select, left bank only) | F10 |
+`GameInput` is the single home for input behavior: the cabinet mapping shim,
+the `ui_exit` instant quit, and a **`map_all_inputs_to_p1`** boolean (open
+`scenes/game_input.tscn` and toggle "Map All Inputs To P1" in the Inspector,
+or set `GameInput.map_all_inputs_to_p1` at runtime). When enabled, all
+controls drive the `p1_*` actions — handy for single-player games: `p1_*`
+joypad bindings match any device, and every `p2_*` binding (keyboard and
+joypad) is rerouted onto its matching `p1_*` action, leaving the `p2_*`
+actions silent. Toggling it releases all `p1_*`/`p2_*` pressed states, so
+players re-press after a swap.
+
+| Action | Cabinet | Gamepad (Xbox / DualShock) | Keyboard |
+|---|---|---|---|
+| `p1_left/right/up/down` | Left bank stick | Left stick + D-pad (device 0) | Arrow keys |
+| `p1_button1`–`p1_button4` | Left buttons 1–4 | A / B / X / Y (Cross/Circle/Square/Triangle) | Z X C V |
+| `p1_button5`, `p1_button6` | Left buttons 5–6 | LB / RB (L1 / R1) | B N |
+| `p1_start` | 1P Start | Start / Options | 1 |
+| `p2_*` | Right bank (same layout) | Same, device 1 | A D W S move, U I O J K L buttons, 2 start |
+| `ui_exit` | Select (left bank) | Back / View / Share (any device) | F10 |
 
 Notes:
 
-- Sticks are digital: axes report ±1.0 or ~0.0, so the 0.2 deadzone always
-  triggers cleanly.
-- **Enumeration order is not guaranteed.** Player 1 defaults to device 0 and
-  player 2 to device 1, but the banks can swap between machines or boots.
-  Identify a bank by pressing one of its buttons; for robustness, add a
-  "press any LEFT button" screen and rebind at runtime (see the cabinet's
-  CONTROLS.md for a snippet).
-- `ui_exit` uses device -1 because Select only physically exists on the left
-  bank (the right pad's index 8 is an unwired spare terminal).
-- Godot's built-in `ui_up/down/left/right`, `ui_accept`, `ui_cancel` defaults
-  already match the cabinet: accept = joypad button 0 (panel Button 1),
-  cancel = button 1 (panel Button 2), navigation = axes 0/1.
+- Player 1 = joypad device 0, Player 2 = device 1. **Cabinet bank enumeration
+  order is not guaranteed** — the banks can swap between machines or boots.
+  Run the controller-test scene to see which bank is which; for full
+  robustness add a "press any LEFT button" screen and rebind at runtime (see
+  the cabinet's CONTROLS.md).
+- The cabinet sticks are digital (axes report ±1.0), so the 0.2 deadzone
+  always triggers cleanly.
+- `GameInput` reads each pad's GUID at runtime instead of hardcoding one,
+  because SDL GUIDs differ between Windows (dev) and Linux (cabinet).
+- `ui_up/down/left/right`, `ui_accept`, `ui_cancel` are explicitly overridden
+  so both players feed them equally: joypad events match any device (stick +
+  D-pad navigate, A/Button 1 = accept, B/Button 2 = cancel, per the launcher
+  spec), and both keyboard sets work (arrows and WASD navigate; Enter, Space,
+  Z, U accept; Escape, X, I cancel).
+
+## Controller test scene
+
+`scenes/controller_test.tscn` (the default main scene) lists every `p1_*` and
+`p2_*` action in two columns plus the `ui_*` actions, and highlights each one
+in green while it is held. It is purely action-driven — it knows nothing
+about devices, so it shows exactly what `GameInput`'s configuration produces
+(including `map_all_inputs_to_p1`, whose current state is shown in the
+header). To identify a physical bank, press its controls and watch which
+column lights up.
+
+Quitting the test scene requires **holding `ui_exit` (Select / Back / F10) for
+3 seconds** — a footer note on screen shows the countdown. The scene consumes
+`ui_exit` events so `GameInput`'s instant quit doesn't fire there, letting
+you see the action highlight; real gameplay scenes don't intercept it, so
+games built on this template still quit immediately as GAME_SPEC.md requires.
+Replace `run/main_scene` in `project.godot` when you start building your game.
 
 ## GD_ArcadeLauncher conformance
 
-- `ui_exit` is implemented by the `ArcadeExit` autoload
-  (`scripts/arcade_exit.gd`) and quits immediately — mandatory per GAME_SPEC.md.
+- `ui_exit` is implemented by the `GameInput` autoload
+  (`scenes/game_input.tscn`) and quits immediately — mandatory per
+  GAME_SPEC.md.
 - The project runs fullscreen at 1920×1080 (`canvas_items` stretch, `expand`).
 - `game.json` at the project root is the metadata template — edit it and copy
   it into your upload folder.
