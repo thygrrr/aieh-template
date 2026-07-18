@@ -45,7 +45,7 @@ var _exit_hold := 0.0
 
 func _ready() -> void:
 	# Keep polling/highlighting while GameInput's pause overlay has the tree
-	# paused, so the crossed Start buttons can be verified live.
+	# paused, so the Start buttons can be verified live.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 	var center := CenterContainer.new()

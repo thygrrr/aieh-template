@@ -26,8 +26,9 @@ joypad) is rerouted onto its matching `p1_*` action, leaving the `p2_*`
 actions silent. Toggling it releases all `p1_*`/`p2_*` pressed states, so
 players re-press after a swap.
 
-The physical panel is documented in `button-layout.jpg` (labels are
-`b<raw button>_<bank>`). Each bank has a stick and six colored buttons
+The physical panel is documented in `button-layout.svg` (corrected
+2026-07-18; labels are `b<raw button>_<player>`; `button-layout.jpg` is the
+older photo it supersedes). Each bank has a stick and six colored buttons
 lettered on the panel: **A** yellow, **B** orange, **C** red, **D** purple,
 plus blue and green. Between the banks sit two white Start buttons (marked
 with volume icons — the launcher uses them for volume) and one black button.
@@ -43,23 +44,22 @@ with volume icons — the launcher uses them for volume) and one black button.
 
 Notes:
 
-- **The white Start buttons are wired crosswise**: per `button-layout.jpg`,
-  the left white button is electrically Start (`b9`) on the *right* bank's
-  encoder half and vice versa. `GameInput` compensates automatically whenever
-  a cabinet ("Twin USB") pad is connected by binding `p1_start` to P2's
-  device and `p2_start` to P1's — so the white button on each player's side
-  is that player's start. Ordinary gamepads are unaffected; set
-  `force_cross_start_devices` (exported on `scenes/game_input.tscn`) to force
-  the crossed assignment on other hardware.
-- `GameInput` assigns joypads to players dynamically: the two lowest
-  connected device ids drive `p1_*` and `p2_*` (it rewrites the device field
-  of every `p1_*`/`p2_*` joypad binding — the ids in `project.godot` are
-  placeholders). **Cabinet bank enumeration order is not guaranteed** — if
-  the sides come out reversed, set **`swap_player_devices`** (exported on
-  `scenes/game_input.tscn`, or `GameInput.swap_player_devices` at runtime).
-  Run the controller-test scene to see which bank is which; for full
-  robustness add a "press any LEFT button" screen and toggle the swap at
-  runtime (see the cabinet's CONTROLS.md).
+- **The white Start buttons are NOT wired crosswise**: per
+  `button-layout.svg` (corrected 2026-07-18), each white button reports `b9`
+  on its own player's device (left = P1, right = P2), so `p1_start` and
+  `p2_start` bind straight to their own player's device. Set
+  `force_cross_start_devices` (exported on `scenes/game_input.tscn`) only for
+  hardware that *is* wired crosswise.
+- `GameInput` assigns joypads to players dynamically (it rewrites the device
+  field of every `p1_*`/`p2_*` joypad binding — the ids in `project.godot`
+  are placeholders). Default: lowest device id = P1. **The cabinet's USB
+  enumeration is swapped relative to player order** (`button-layout.svg`:
+  P1 = device 1, P2 = device 0), so whenever a cabinet ("Twin USB") pad is
+  connected the reversed order is applied automatically. If the sides still
+  come out reversed, set **`swap_player_devices`** (exported on
+  `scenes/game_input.tscn`, or `GameInput.swap_player_devices` at runtime) —
+  it flips whichever default applies. Run the controller-test scene to see
+  which bank is which.
 - The cabinet sticks are digital (axes report ±1.0), so the 0.2 deadzone
   always triggers cleanly.
 - `GameInput` reads each pad's GUID at runtime instead of hardcoding one,
@@ -107,7 +107,7 @@ actually emit.
 
 The scene runs in `PROCESS_MODE_ALWAYS`, so when a Start press opens the
 pause overlay the action grid keeps updating behind the translucent dim —
-you can verify the crossed white buttons (which side lights `p1_start` vs
+you can verify the white Start buttons (which side lights `p1_start` vs
 `p2_start`) and the overlay's tap-to-continue / hold-to-quit behavior in the
 same place.
 
@@ -188,7 +188,8 @@ template can do from inside the game.
 4. Verify: `cat /proc/cmdline` should contain the `usbhid.quirks=` string,
    and `/proc/bus/input/devices` should now list **two** "Twin USB" entries,
    each with its own `js` handler. Then run the raw input debug scene — Godot
-   should report two devices, with the second bank emitting on device 1.
+   should report two devices; per `button-layout.svg` the left (P1) bank
+   emits on device 1 and the right (P2) bank on device 0.
 
 (On Raspberry Pi OS the same `usbhid.quirks=...` string goes at the start of
 `/boot/cmdline.txt` instead — noted here in case the cabinet hardware ever

@@ -1,7 +1,7 @@
 extends SceneTree
 
 # Headless smoke test for GameInput's device assignment, p1-pooling,
-# crossed-start compensation, and the pause overlay state machine.
+# the forced crossed-start override, and the pause overlay state machine.
 # No joypads exist headless, so assignment falls back to devices 0/1 —
 # enough to verify that swap_player_devices, map_all_inputs_to_p1 and
 # force_cross_start_devices rewrite and restore the p1_*/p2_* joypad

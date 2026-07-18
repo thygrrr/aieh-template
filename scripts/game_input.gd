@@ -11,13 +11,14 @@ extends Node
 #   Windows, "Twin USB Joystick" on Linux).
 # - Assigns joypads to players dynamically: the two lowest connected
 #   device ids drive p1_* and p2_* (project.godot's hardcoded 0/1 are
-#   just placeholders). Enumeration order is not guaranteed, so
-#   swap_player_devices flips which bank is which.
-# - Compensates for the cabinet's crossed white Start buttons: the white
-#   button on P1's side is electrically Start on the OTHER bank
-#   (button-layout.jpg: left white = b9 of bank 2, right white = b9 of
-#   bank 1), so on cabinet pads p1_start binds to P2's device and vice
-#   versa.
+#   just placeholders). The cabinet's banks enumerate P2-first
+#   (button-layout.svg, corrected 2026-07-18: P1 = device 1, P2 =
+#   device 0), so cabinet pads get the reversed order by default;
+#   swap_player_devices flips whichever default applies.
+# - The white Start buttons are NOT wired crosswise: each reports b9 on
+#   its own player's device (button-layout.svg), so p1_start/p2_start
+#   bind straight to their own player's device. force_cross_start_devices
+#   remains for hardware that IS wired crosswise.
 # - map_all_inputs_to_p1: single-player convenience — every control drives p1_*.
 # - Pause overlay: pressing p1_start/p2_start pauses the tree and shows
 #   "hold pause button for 3 seconds to quit — tap to continue"; holding
@@ -41,15 +42,18 @@ const PAUSE_QUIT_HOLD_SECONDS := 3.0
 ## Can also be toggled at runtime via GameInput.map_all_inputs_to_p1.
 @export var map_all_inputs_to_p1 := false: set = set_map_all_inputs_to_p1
 
-## Swap which physical joypad drives P1 vs P2. The cabinet's two banks can
-## enumerate in either order (on some machines the right bank comes first),
-## so flip this if the sides come out reversed.
+## Swap which physical joypad drives P1 vs P2, relative to the default.
+## Default: lowest device id = P1 — except cabinet ("Twin USB") pads, whose
+## banks enumerate P2-first (button-layout.svg: P1 = device 1, P2 = device 0)
+## and so get the reversed order automatically. Flip this if the sides still
+## come out reversed.
 ## Can also be toggled at runtime via GameInput.swap_player_devices.
 @export var swap_player_devices := false: set = set_swap_player_devices
 
-## The cabinet's white Start buttons are wired crosswise, so cabinet pads get
-## the crossed start assignment automatically (see _start_devices_crossed).
-## Set this to force the crossed assignment on other hardware (or in tests).
+## The cabinet's white Start buttons are NOT wired crosswise — each is b9 on
+## its own player's device (button-layout.svg), so starts bind straight.
+## Set this to cross them (p1_start on P2's device and vice versa) for
+## hardware that IS wired crosswise, or in tests.
 @export var force_cross_start_devices := false: set = set_force_cross_start_devices
 
 ## Pause overlay: pressing a Start button (white cabinet buttons, keys 1/2)
@@ -133,15 +137,21 @@ func _reassign_devices() -> void:
 	pads.sort()
 	var first: int = pads[0] if pads.size() >= 1 else 0
 	var second: int = pads[1] if pads.size() >= 2 else first + 1
-	p1_device = second if swap_player_devices else first
-	p2_device = first if swap_player_devices else second
+	# Cabinet banks enumerate P2-first (button-layout.svg: P1 = device 1,
+	# P2 = device 0), so cabinet pads default to the reversed order;
+	# swap_player_devices flips whichever default applies.
+	var reversed := swap_player_devices != _cabinet_pad_connected()
+	p1_device = second if reversed else first
+	p2_device = first if reversed else second
 	_apply_device_assignment()
 
 func _apply_device_assignment() -> void:
 	# Rewrites the device field of every p1_*/p2_* joypad binding. GameInput
 	# owns those fields — the ids in project.godot are only placeholders.
 	# While pooled, p1_* is left untouched: its joypad events stay at -1.
-	var cross := _start_devices_crossed()
+	# Starts are not crossed on the cabinet (button-layout.svg) — crossing
+	# only happens when force_cross_start_devices asks for it.
+	var cross := force_cross_start_devices
 	for action in InputMap.get_actions():
 		var action_name := String(action)
 		var device: int
@@ -205,12 +215,7 @@ func _release_player_actions() -> void:
 		if action_name.begins_with("p1_") or action_name.begins_with("p2_"):
 			Input.action_release(action)
 
-func _start_devices_crossed() -> bool:
-	# The white Start buttons sit crosswise on the cabinet: the left one is
-	# b9 of the RIGHT bank's encoder half and vice versa (button-layout.jpg),
-	# so each player's start must bind to the other player's device.
-	if force_cross_start_devices:
-		return true
+func _cabinet_pad_connected() -> bool:
 	for device in Input.get_connected_joypads():
 		if Input.get_joy_name(device).begins_with(CABINET_PAD_PREFIX):
 			return true
