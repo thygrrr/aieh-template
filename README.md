@@ -8,13 +8,15 @@ Godot template preconfigured for the CY-1121 arcade cabinet and the
 All actions live in the project Input Map (Project Settings → Input Map).
 Joypad bindings use standard (SDL semantic) button indices, so any ordinary
 gamepad works out of the box for local development. The CY-1121 panel
-enumerates as two unrecognized "Twin USB Gamepad" devices; the `GameInput`
-autoload (`scenes/game_input.tscn`) installs an SDL mapping for them at
-runtime so both banks also present as standard gamepads — one binding set
-serves cabinet and desktop.
+enumerates as two unrecognized "Twin USB" devices ("Twin USB Gamepad" on
+Windows, "Twin USB Joystick" on Linux); the `GameInput` autoload
+(`scenes/game_input.tscn`) installs an SDL mapping for them at runtime so
+both banks also present as standard gamepads — one binding set serves
+cabinet and desktop.
 
 `GameInput` is the single home for input behavior: the cabinet mapping shim,
-the `ui_exit` instant quit, and a **`map_all_inputs_to_p1`** boolean (open
+the `ui_exit` instant quit, dynamic player-device assignment (below), and a
+**`map_all_inputs_to_p1`** boolean (open
 `scenes/game_input.tscn` and toggle "Map All Inputs To P1" in the Inspector,
 or set `GameInput.map_all_inputs_to_p1` at runtime). When enabled, all
 controls drive the `p1_*` actions — handy for single-player games: `p1_*`
@@ -34,11 +36,15 @@ players re-press after a swap.
 
 Notes:
 
-- Player 1 = joypad device 0, Player 2 = device 1. **Cabinet bank enumeration
-  order is not guaranteed** — the banks can swap between machines or boots.
+- `GameInput` assigns joypads to players dynamically: the two lowest
+  connected device ids drive `p1_*` and `p2_*` (it rewrites the device field
+  of every `p1_*`/`p2_*` joypad binding — the ids in `project.godot` are
+  placeholders). **Cabinet bank enumeration order is not guaranteed** — if
+  the sides come out reversed, set **`swap_player_devices`** (exported on
+  `scenes/game_input.tscn`, or `GameInput.swap_player_devices` at runtime).
   Run the controller-test scene to see which bank is which; for full
-  robustness add a "press any LEFT button" screen and rebind at runtime (see
-  the cabinet's CONTROLS.md).
+  robustness add a "press any LEFT button" screen and toggle the swap at
+  runtime (see the cabinet's CONTROLS.md).
 - The cabinet sticks are digital (axes report ±1.0), so the 0.2 deadzone
   always triggers cleanly.
 - `GameInput` reads each pad's GUID at runtime instead of hardcoding one,
@@ -53,11 +59,18 @@ Notes:
 
 `scenes/controller_test.tscn` (the default main scene) lists every `p1_*` and
 `p2_*` action in two columns plus the `ui_*` actions, and highlights each one
-in green while it is held. It is purely action-driven — it knows nothing
-about devices, so it shows exactly what `GameInput`'s configuration produces
-(including `map_all_inputs_to_p1`, whose current state is shown in the
-header). To identify a physical bank, press its controls and watch which
-column lights up.
+in green while it is held. The action grid is purely action-driven, so it
+shows exactly what `GameInput`'s configuration produces (including
+`map_all_inputs_to_p1`, whose current state is shown in the header alongside
+the P1/P2 device assignment). To identify a physical bank, press its controls
+and watch which column lights up.
+
+A diagnostics footer shows every connected joypad (device id, name, GUID,
+whether a mapping is installed) and traces the most recent joypad events as
+Godot delivers them (`device N button M` / `device N axis M ±1.0`). If a bank
+misbehaves — wrong side, dead, or merged into the other bank's device — this
+readout tells you which device id and button/axis indices its controls
+actually emit.
 
 Quitting the test scene requires **holding `ui_exit` (Select / Back / F10) for
 3 seconds** — a footer note on screen shows the countdown. The scene consumes
@@ -65,6 +78,33 @@ Quitting the test scene requires **holding `ui_exit` (Select / Back / F10) for
 you see the action highlight; real gameplay scenes don't intercept it, so
 games built on this template still quit immediately as GAME_SPEC.md requires.
 Replace `run/main_scene` in `project.godot` when you start building your game.
+
+## Raw input debug scene
+
+`scenes/raw_input_debug.tscn` (**currently set as the main scene** while the
+cabinet's input wiring is being debugged) removes every connected joypad's
+SDL mapping at startup, so Godot delivers raw HID indices. It shows panels
+for device ids 0–3 (plus anything else connected) whether or not Godot
+reports them — id, name, GUID, `Input.get_joy_info()`, a live `b0`–`b23`
+button grid and `a0`–`a9` axis readout polled every frame — plus a log of
+the most recent joypad events. Press every physical control and note its
+device + index — this is the ground truth the mapped controller-test scene
+cannot show, because a mapping silently swallows any index it does not
+reference.
+
+On Linux it also renders (and `print()`s, so the launcher log captures it) a
+kernel-level view from `/proc/bus/input/devices`: every input device with a
+`js` handler, its name/phys/handlers, and whether this process can open each
+`/dev/input` node. That distinguishes "the kernel created a second joystick
+device Godot cannot read" (a permissions problem) from "the kernel merged
+both banks into one device" (the Twin USB adapter without
+`HID_QUIRK_MULTI_INPUT` — duplicate controls collapse onto the same event
+codes, which shows up as the second stick mirroring the first and the second
+bank's buttons vanishing).
+
+Quit with F10/Escape, or hold any single joypad button for 5 seconds. When
+debugging is done, point `run/main_scene` in `project.godot` back at
+`res://scenes/controller_test.tscn`.
 
 ## GD_ArcadeLauncher conformance
 
@@ -120,4 +160,11 @@ machine without an `/arcade` directory it falls back to
 
 ```
 godot --headless --path . -s res://tests/high_score_smoke.gd
+```
+
+`tests/input_smoke.gd` does the same for `GameInput`'s device assignment,
+`swap_player_devices`, and the `map_all_inputs_to_p1` round-trip:
+
+```
+godot --headless --path . -s res://tests/input_smoke.gd
 ```
