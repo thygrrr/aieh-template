@@ -4,4 +4,3 @@
 
 [node name="GameInput" type="Node" unique_id=1856288195]
 script = ExtResource("1_j5f2y")
-ui_exit_enabled = false

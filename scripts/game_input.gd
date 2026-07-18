@@ -25,9 +25,7 @@ extends Node
 #   the button (including the press that opened the overlay) quits.
 # - Quits immediately on ui_exit, as GD_ArcadeLauncher's GAME_SPEC.md
 #   requires (the black center button on the cabinet, Back/View on a pad,
-#   F10 on keyboard) — unless ui_exit_enabled is off. It is currently OFF
-#   in scenes/game_input.tscn: the cabinet's black button is stuck down,
-#   so quitting goes through the pause overlay (hold Start) instead.
+#   F10 on keyboard) — unless ui_exit_enabled is off.
 
 const CABINET_PAD_PREFIX := "Twin USB"
 # Panel buttons A/B/C/D/blue/green = raw b0-b5 -> A/B/X/Y/LB/RB; the black
@@ -64,9 +62,9 @@ const PAUSE_QUIT_HOLD_SECONDS := 3.0
 @export var pause_overlay_enabled := true: set = set_pause_overlay_enabled
 
 ## Instant quit on ui_exit (black cabinet button / Back / F10), required by
-## GAME_SPEC.md. Temporarily OFF in scenes/game_input.tscn because the
-## cabinet's black button is stuck in the down position — quit via the pause
-## overlay (hold Start 3 s) instead. Re-enable once the hardware is fixed.
+## GAME_SPEC.md. Disable (e.g. via a scenes/game_input.tscn override) if the
+## cabinet's black button misbehaves — quit then goes through the pause
+## overlay (hold Start 3 s) instead.
 @export var ui_exit_enabled := true
 
 # Device ids currently driving each player's joypad bindings (read-only;
