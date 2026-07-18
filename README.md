@@ -87,6 +87,37 @@ screenshot.png           # recommended, 1920×1080
 icon.png                 # recommended, 128×128
 ```
 
-High scores can optionally be written to `/arcade/scores/<folder_name>.json`
-as a JSON array of `{"name": "AAA", "score": 10000}` entries (top 10, sorted
-descending).
+## High scores
+
+The `HighScore` autoload (`scripts/high_score.gd`) implements the launcher's
+optional score submission spec — call it from anywhere:
+
+```gdscript
+if HighScore.is_high_score(score):        # would this make the table?
+    var rank := HighScore.submit_score("AAA", score)  # 0 = best, -1 = missed
+
+HighScore.get_scores()   # Array of {"name": ..., "score": ...}, best first
+HighScore.get_best()     # top score, 0 if the table is empty
+HighScore.clear_scores()
+HighScore.scores_changed # signal, emitted after submit/clear — connect UI here
+```
+
+The table lives in a `HighScoreData` resource (`scripts/high_score_data.gd`,
+an exported array of name/score entries, sorted descending, capped at 10 per
+the launcher spec) persisted to `user://high_scores.tres`. It is loaded on
+startup and saved on every score change and on application exit (covers both
+the `ui_exit` quit and a window close).
+
+At the same times, the table is exported in the launcher's format — a JSON
+array of `{"name": "AAA", "score": 10000}` entries — to
+`/arcade/scores/<game_id>.json`, where `game_id` is the executable's folder
+name under `/arcade/games/` (exactly how the launcher keys scores). On a dev
+machine without an `/arcade` directory it falls back to
+`user://<game_id>.json` so you can inspect the output; in the editor the
+`game_id` falls back to the project name.
+
+`tests/high_score_smoke.gd` is a headless smoke test for all of the above:
+
+```
+godot --headless --path . -s res://tests/high_score_smoke.gd
+```
