@@ -218,7 +218,7 @@ game.x86_64 (chmod +x)   # required
 game.pck                 # required
 game.json                # recommended (edit the one in this repo)
 preview.ogv              # recommended, 5–15 s gameplay clip
-screenshot.png           # recommended, 1920×1080
+screenshot.png           # recommended, 1280x1024
 icon.png                 # recommended, 128×128
 ```
 
