@@ -13,12 +13,26 @@ extends Node
 #   device ids drive p1_* and p2_* (project.godot's hardcoded 0/1 are
 #   just placeholders). Enumeration order is not guaranteed, so
 #   swap_player_devices flips which bank is which.
+# - Compensates for the cabinet's crossed white Start buttons: the white
+#   button on P1's side is electrically Start on the OTHER bank
+#   (button-layout.jpg: left white = b9 of bank 2, right white = b9 of
+#   bank 1), so on cabinet pads p1_start binds to P2's device and vice
+#   versa.
 # - map_all_inputs_to_p1: single-player convenience — every control drives p1_*.
+# - Pause overlay: pressing p1_start/p2_start pauses the tree and shows
+#   "hold pause button for 3 seconds to quit — tap to continue"; holding
+#   the button (including the press that opened the overlay) quits.
 # - Quits immediately on ui_exit, as GD_ArcadeLauncher's GAME_SPEC.md
-#   requires (Select on the cabinet, Back/View on a pad, F10 on keyboard).
+#   requires (the black center button on the cabinet, Back/View on a pad,
+#   F10 on keyboard).
 
 const CABINET_PAD_PREFIX := "Twin USB"
+# Panel buttons A/B/C/D/blue/green = raw b0-b5 -> A/B/X/Y/LB/RB; the black
+# center button is b8 (back) and the white Start buttons are b9 (start).
 const CABINET_LAYOUT := "a:b0,b:b1,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,back:b8,start:b9,leftx:a0,lefty:a1,dpup:h0.1,dpright:h0.2,dpdown:h0.4,dpleft:h0.8"
+
+const PAUSE_ACTIONS: Array[StringName] = [&"p1_start", &"p2_start"]
+const PAUSE_QUIT_HOLD_SECONDS := 3.0
 
 ## Map All Inputs to P1 — when enabled, the joypad bindings of every p1_*
 ## action match any device, and every p2_* binding (keyboard and joypad) is
@@ -33,6 +47,16 @@ const CABINET_LAYOUT := "a:b0,b:b1,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,ba
 ## Can also be toggled at runtime via GameInput.swap_player_devices.
 @export var swap_player_devices := false: set = set_swap_player_devices
 
+## The cabinet's white Start buttons are wired crosswise, so cabinet pads get
+## the crossed start assignment automatically (see _start_devices_crossed).
+## Set this to force the crossed assignment on other hardware (or in tests).
+@export var force_cross_start_devices := false: set = set_force_cross_start_devices
+
+## Pause overlay: pressing a Start button (white cabinet buttons, keys 1/2)
+## pauses the tree and shows "hold to quit — tap to continue". Disable for
+## games that implement their own pause menu.
+@export var pause_overlay_enabled := true: set = set_pause_overlay_enabled
+
 # Device ids currently driving each player's joypad bindings (read-only;
 # managed by _reassign_devices). A player whose device id has no connected
 # pad simply receives no joypad input.
@@ -41,7 +65,18 @@ var p2_device := 1
 
 var _p2_moved_events: Dictionary = {}  # p2 action StringName -> its InputEvents, now living on the p1 twin
 
+var _pause_layer: CanvasLayer
+var _pause_hint: Label
+var _pause_hold_action := StringName()  # pause action currently held, if any
+var _pause_hold_time := 0.0
+var _pause_opening_press := false  # current hold is the press that opened the overlay
+var _paused_by_overlay := false
+
 func _ready() -> void:
+	# The pause overlay must keep processing (and receiving input) while the
+	# tree is paused.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	_build_pause_overlay()
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	for device in Input.get_connected_joypads():
 		_map_if_cabinet_pad(device)
@@ -52,6 +87,12 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_exit"):
 		get_tree().quit()
+		return
+	for action in PAUSE_ACTIONS:
+		if event.is_action_pressed(action):
+			_on_pause_button_pressed(action)
+		elif event.is_action_released(action) and action == _pause_hold_action:
+			_on_pause_button_released()
 
 func set_map_all_inputs_to_p1(value: bool) -> void:
 	if map_all_inputs_to_p1 == value:
@@ -72,6 +113,21 @@ func set_swap_player_devices(value: bool) -> void:
 		return  # _ready applies the initial value
 	_reassign_devices()
 
+func set_force_cross_start_devices(value: bool) -> void:
+	if force_cross_start_devices == value:
+		return
+	force_cross_start_devices = value
+	if not is_node_ready():
+		return  # _ready applies the initial value
+	_apply_device_assignment()
+
+func set_pause_overlay_enabled(value: bool) -> void:
+	pause_overlay_enabled = value
+	if not value and _paused_by_overlay:
+		_pause_hold_action = StringName()
+		_pause_opening_press = false
+		_close_pause_overlay()
+
 func _reassign_devices() -> void:
 	var pads := Input.get_connected_joypads()
 	pads.sort()
@@ -85,13 +141,14 @@ func _apply_device_assignment() -> void:
 	# Rewrites the device field of every p1_*/p2_* joypad binding. GameInput
 	# owns those fields — the ids in project.godot are only placeholders.
 	# While pooled, p1_* is left untouched: its joypad events stay at -1.
+	var cross := _start_devices_crossed()
 	for action in InputMap.get_actions():
 		var action_name := String(action)
 		var device: int
 		if action_name.begins_with("p1_") and not map_all_inputs_to_p1:
-			device = p1_device
+			device = p2_device if (cross and action_name == "p1_start") else p1_device
 		elif action_name.begins_with("p2_"):
-			device = p2_device
+			device = p1_device if (cross and action_name == "p2_start") else p2_device
 		else:
 			continue
 		for event in InputMap.action_get_events(action):
@@ -148,6 +205,17 @@ func _release_player_actions() -> void:
 		if action_name.begins_with("p1_") or action_name.begins_with("p2_"):
 			Input.action_release(action)
 
+func _start_devices_crossed() -> bool:
+	# The white Start buttons sit crosswise on the cabinet: the left one is
+	# b9 of the RIGHT bank's encoder half and vice versa (button-layout.jpg),
+	# so each player's start must bind to the other player's device.
+	if force_cross_start_devices:
+		return true
+	for device in Input.get_connected_joypads():
+		if Input.get_joy_name(device).begins_with(CABINET_PAD_PREFIX):
+			return true
+	return false
+
 func _is_joypad_event(event: InputEvent) -> bool:
 	return event is InputEventJoypadButton or event is InputEventJoypadMotion
 
@@ -164,3 +232,92 @@ func _map_if_cabinet_pad(device: int) -> void:
 	if guid.is_empty():
 		return
 	Input.add_joy_mapping("%s,%s,%s" % [guid, joy_name, CABINET_LAYOUT], true)
+
+# --- Pause overlay ----------------------------------------------------------
+# Tap a Start button to pause; while paused, tap again to continue. Holding
+# a Start button for PAUSE_QUIT_HOLD_SECONDS quits — including the press
+# that opened the overlay, so "hold Start" quits from anywhere.
+
+func _on_pause_button_pressed(action: StringName) -> void:
+	if not pause_overlay_enabled:
+		return
+	if _paused_by_overlay:
+		_pause_opening_press = false
+	elif not get_tree().paused:
+		get_tree().paused = true
+		_paused_by_overlay = true
+		_pause_layer.visible = true
+		_pause_opening_press = true
+	else:
+		return  # the game paused the tree itself — stay out of its way
+	_pause_hold_action = action
+	_pause_hold_time = 0.0
+	_update_pause_hint()
+
+func _on_pause_button_released() -> void:
+	var was_opening := _pause_opening_press
+	_pause_hold_action = StringName()
+	_pause_opening_press = false
+	if _paused_by_overlay and not was_opening:
+		_close_pause_overlay()
+	else:
+		_update_pause_hint()
+
+func _close_pause_overlay() -> void:
+	_paused_by_overlay = false
+	if _pause_layer != null:
+		_pause_layer.visible = false
+	get_tree().paused = false
+
+func _process(delta: float) -> void:
+	if _pause_hold_action == StringName():
+		return
+	if not Input.is_action_pressed(_pause_hold_action):
+		# The release event went missing (e.g. bindings were rewritten
+		# mid-hold) — treat it as an aborted hold, not a tap.
+		_pause_hold_action = StringName()
+		_pause_opening_press = false
+		_update_pause_hint()
+		return
+	_pause_hold_time += delta
+	if _pause_hold_time >= PAUSE_QUIT_HOLD_SECONDS:
+		get_tree().quit()
+		return
+	_update_pause_hint()
+
+func _update_pause_hint() -> void:
+	if _pause_hold_action != StringName() and _pause_hold_time > 0.0:
+		_pause_hint.text = "Quitting in %.1f s — keep holding" % (PAUSE_QUIT_HOLD_SECONDS - _pause_hold_time)
+	else:
+		_pause_hint.text = "Hold pause button for 3 seconds to quit — tap to continue"
+
+func _build_pause_overlay() -> void:
+	_pause_layer = CanvasLayer.new()
+	_pause_layer.layer = 100
+	_pause_layer.visible = false
+	add_child(_pause_layer)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_layer.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_layer.add_child(center)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 16)
+	center.add_child(box)
+
+	var title := Label.new()
+	title.text = "PAUSED"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 64)
+	box.add_child(title)
+
+	_pause_hint = Label.new()
+	_pause_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pause_hint.add_theme_font_size_override("font_size", 28)
+	box.add_child(_pause_hint)
+	_update_pause_hint()

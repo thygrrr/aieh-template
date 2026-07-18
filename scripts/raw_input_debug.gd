@@ -38,6 +38,9 @@ var _quit_hold := 0.0
 var _quit_candidate := Vector2i(-1, -1)  # (device, button) being held
 
 func _ready() -> void:
+	# GameInput's pause overlay would freeze this diagnostic (keys 1/2 hit
+	# p1_start/p2_start even with the joy mappings stripped) — keep it off.
+	GameInput.pause_overlay_enabled = false
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	_strip_mappings()
 

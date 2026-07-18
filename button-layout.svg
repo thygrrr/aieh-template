@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1640 790" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <style>
+      .h1     { font-size: 26px; font-weight: 700; fill: #1a1a1a; }
+      .h2     { font-size: 19px; font-weight: 700; fill: #333; }
+      .lbl    { font-size: 16px; font-weight: 600; fill: #222; }
+      .sub    { font-size: 14px; fill: #555; }
+      .note   { font-size: 15px; fill: #333; }
+      .letter { font-size: 26px; font-weight: 800; }
+      .art    { font-size: 22px; font-weight: 700; fill: #777; }
+      .bezel  { fill: #c9c9cf; stroke: #8a8a92; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="1640" height="790" fill="#ffffff"/>
+  <text x="820" y="38" text-anchor="middle" class="h1">Arcade Cabinet — Control Panel Button Map (corrected 2026-07-18)</text>
+
+  <!-- panel -->
+  <rect x="20" y="60" width="1600" height="560" rx="18" fill="#dcdce0" stroke="#9a9aa2" stroke-width="3"/>
+
+  <!-- ===================== P1 stick ===================== -->
+  <g>
+    <ellipse cx="170" cy="380" rx="52" ry="20" fill="#1c1c1c"/>
+    <rect x="162" y="290" width="16" height="92" rx="7" fill="#2a2a2a"/>
+    <circle cx="170" cy="278" r="32" fill="#111" stroke="#000" stroke-width="2"/>
+    <text x="170" y="440" text-anchor="middle" class="lbl">P1 STICK</text>
+    <text x="170" y="463" text-anchor="middle" class="sub">device 1 · left | right | up | down</text>
+  </g>
+
+  <!-- ===================== P1 buttons (device 1) ===================== -->
+  <text x="562" y="140" text-anchor="middle" class="h2">P1 BUTTONS — device 1</text>
+  <g text-anchor="middle">
+    <!-- top row -->
+    <circle cx="430" cy="250" r="54" class="bezel"/><circle cx="430" cy="250" r="42" fill="#f2c500"/>
+    <text x="430" y="259" class="letter" fill="#3a3000">A</text>
+    <text x="430" y="330" class="lbl">b0_1</text>
+
+    <circle cx="545" cy="232" r="54" class="bezel"/><circle cx="545" cy="232" r="42" fill="#ef7d1a"/>
+    <text x="545" y="241" class="letter" fill="#fff">B</text>
+    <text x="545" y="164" class="lbl">b1_1</text>
+
+    <circle cx="660" cy="250" r="54" class="bezel"/><circle cx="660" cy="250" r="42" fill="#d62828"/>
+    <text x="660" y="259" class="letter" fill="#fff">C</text>
+    <text x="660" y="330" class="lbl">b2_1</text>
+
+    <!-- bottom row -->
+    <circle cx="465" cy="380" r="54" class="bezel"/><circle cx="465" cy="380" r="42" fill="#6a3fb5"/>
+    <text x="465" y="389" class="letter" fill="#fff">D</text>
+    <text x="465" y="460" class="lbl">b3_1</text>
+
+    <circle cx="580" cy="362" r="54" class="bezel"/><circle cx="580" cy="362" r="42" fill="#2469d3"/>
+    <text x="580" y="442" class="lbl">b4_1</text>
+
+    <circle cx="695" cy="380" r="54" class="bezel"/><circle cx="695" cy="380" r="42" fill="#1c9e4b"/>
+    <text x="695" y="460" class="lbl">b5_1</text>
+  </g>
+
+  <!-- ===================== center: start / volume / exit ===================== -->
+  <g text-anchor="middle">
+    <text x="930" y="140" class="h2">CENTER</text>
+    <text x="930" y="167" class="sub">white buttons NOT crossed over ✓</text>
+
+    <text x="805" y="258" class="art">🔉−</text>
+    <circle cx="880" cy="250" r="50" class="bezel"/><circle cx="880" cy="250" r="39" fill="#f4f4f0"/>
+    <circle cx="990" cy="250" r="50" class="bezel"/><circle cx="990" cy="250" r="39" fill="#f4f4f0"/>
+    <text x="1063" y="258" class="art">🔊+</text>
+
+    <text x="880" y="330" class="lbl">b9_1</text>
+    <text x="880" y="351" class="sub">P1 START · device 1</text>
+    <text x="990" y="330" class="lbl">b9_2</text>
+    <text x="990" y="351" class="sub">P2 START · device 0</text>
+
+    <circle cx="935" cy="435" r="46" class="bezel"/><circle cx="935" cy="435" r="35" fill="#141414"/>
+    <text x="935" y="510" class="lbl">b8_1</text>
+    <text x="935" y="531" class="sub">ui_exit · device 1</text>
+  </g>
+
+  <!-- ===================== P2 stick ===================== -->
+  <g>
+    <ellipse cx="1150" cy="380" rx="52" ry="20" fill="#1c1c1c"/>
+    <rect x="1142" y="290" width="16" height="92" rx="7" fill="#2a2a2a"/>
+    <circle cx="1150" cy="278" r="32" fill="#111" stroke="#000" stroke-width="2"/>
+    <text x="1150" y="440" text-anchor="middle" class="lbl">P2 STICK</text>
+    <text x="1150" y="463" text-anchor="middle" class="sub">device 0 · left | right | up | down</text>
+  </g>
+
+  <!-- ===================== P2 buttons (device 0) ===================== -->
+  <text x="1417" y="140" text-anchor="middle" class="h2">P2 BUTTONS — device 0</text>
+  <g text-anchor="middle">
+    <!-- top row -->
+    <circle cx="1290" cy="250" r="54" class="bezel"/><circle cx="1290" cy="250" r="42" fill="#f2c500"/>
+    <text x="1290" y="259" class="letter" fill="#3a3000">A</text>
+    <text x="1290" y="330" class="lbl">b0_2</text>
+
+    <circle cx="1405" cy="232" r="54" class="bezel"/><circle cx="1405" cy="232" r="42" fill="#ef7d1a"/>
+    <text x="1405" y="241" class="letter" fill="#fff">B</text>
+    <text x="1405" y="164" class="lbl">b1_2</text>
+
+    <circle cx="1520" cy="250" r="54" class="bezel"/><circle cx="1520" cy="250" r="42" fill="#d62828"/>
+    <text x="1520" y="259" class="letter" fill="#fff">C</text>
+    <text x="1520" y="330" class="lbl">b2_2</text>
+
+    <!-- bottom row -->
+    <circle cx="1325" cy="380" r="54" class="bezel"/><circle cx="1325" cy="380" r="42" fill="#6a3fb5"/>
+    <text x="1325" y="389" class="letter" fill="#fff">D</text>
+    <text x="1325" y="460" class="lbl">b3_2</text>
+
+    <circle cx="1440" cy="362" r="54" class="bezel"/><circle cx="1440" cy="362" r="42" fill="#2469d3"/>
+    <text x="1440" y="442" class="lbl">b4_2</text>
+
+    <circle cx="1555" cy="380" r="54" class="bezel"/><circle cx="1555" cy="380" r="42" fill="#1c9e4b"/>
+    <text x="1555" y="460" class="lbl">b5_2</text>
+  </g>
+
+  <!-- ===================== notes ===================== -->
+  <g>
+    <rect x="20" y="640" width="1600" height="132" rx="10" fill="#f4f4f7" stroke="#c5c5cd" stroke-width="2"/>
+    <text x="40" y="672" class="note" font-weight="700">Notes</text>
+    <text x="40" y="698" class="note">• USB enumeration is swapped relative to player order: P1 = DEVICE 1, P2 = DEVICE 0.</text>
+    <text x="40" y="722" class="note">• White START buttons are NOT crossed over — each reports button 9 on its own player's device (left = P1/device 1, right = P2/device 0).</text>
+    <text x="40" y="746" class="note">• Labels are bN_p: OS-reported button index N (0-based) for player p. Unity's HID Joystick layout may name/number these differently (often 1-based, button 1 = "trigger") — verify with the in-game InputDebugOverlay.</text>
+  </g>
+</svg>

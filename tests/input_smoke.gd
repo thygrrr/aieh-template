@@ -1,9 +1,11 @@
 extends SceneTree
 
-# Headless smoke test for GameInput's device assignment and p1-pooling.
+# Headless smoke test for GameInput's device assignment, p1-pooling,
+# crossed-start compensation, and the pause overlay state machine.
 # No joypads exist headless, so assignment falls back to devices 0/1 —
-# enough to verify that swap_player_devices and map_all_inputs_to_p1
-# rewrite and restore the p1_*/p2_* joypad bindings correctly.
+# enough to verify that swap_player_devices, map_all_inputs_to_p1 and
+# force_cross_start_devices rewrite and restore the p1_*/p2_* joypad
+# bindings correctly.
 
 
 func _initialize() -> void:
@@ -16,6 +18,16 @@ func _initialize() -> void:
 		"default assignment is 0/1, got %d/%d" % [gi.p1_device, gi.p2_device])
 	_check(failures, _joy_devices("p1_button1") == [0], "p1_button1 bound to device 0")
 	_check(failures, _joy_devices("p2_button1") == [1], "p2_button1 bound to device 1")
+	_check(failures, _joy_devices("p1_start") == [0] and _joy_devices("p2_start") == [1],
+		"uncrossed starts on their own devices")
+
+	gi.force_cross_start_devices = true
+	_check(failures, _joy_devices("p1_start") == [1], "crossed p1_start bound to P2's device")
+	_check(failures, _joy_devices("p2_start") == [0], "crossed p2_start bound to P1's device")
+	_check(failures, _joy_devices("p1_button1") == [0], "crossing leaves p1_button1 alone")
+	gi.force_cross_start_devices = false
+	_check(failures, _joy_devices("p1_start") == [0] and _joy_devices("p2_start") == [1],
+		"uncrossed starts restored")
 
 	gi.swap_player_devices = true
 	_check(failures, gi.p1_device == 1 and gi.p2_device == 0,
@@ -39,6 +51,16 @@ func _initialize() -> void:
 	gi.swap_player_devices = false
 	_check(failures, _joy_devices("p1_button1") == [0] and _joy_devices("p2_button1") == [1],
 		"unswapped bindings back on devices 0/1, got %s / %s" % [_joy_devices("p1_button1"), _joy_devices("p2_button1")])
+
+	# Pause overlay round-trip (driving the handlers directly — no real
+	# input events exist headless).
+	gi._on_pause_button_pressed(&"p1_start")
+	_check(failures, paused and gi._pause_layer.visible, "pause press pauses tree and shows overlay")
+	gi._on_pause_button_released()
+	_check(failures, paused and gi._pause_layer.visible, "releasing the opening press stays paused")
+	gi._on_pause_button_pressed(&"p1_start")
+	gi._on_pause_button_released()
+	_check(failures, not paused and not gi._pause_layer.visible, "tap while paused resumes")
 
 	if failures.is_empty():
 		print("SMOKE OK")

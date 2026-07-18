@@ -12,6 +12,10 @@ extends Control
 # ui_exit events are consumed in _input() so GameInput's instant quit never
 # fires here; instead the app terminates after holding ui_exit for 3 seconds,
 # letting you watch the action highlight without leaving the scene.
+# Pressing Start opens GameInput's pause overlay on top of this scene; the
+# scene runs in PROCESS_MODE_ALWAYS so the grid keeps updating behind the
+# translucent overlay — the start highlights (and the overlay itself) stay
+# verifiable in one place.
 
 const ACTION_SUFFIXES: Array[String] = [
 	"left", "right", "up", "down",
@@ -40,6 +44,10 @@ var _exit_label: Label
 var _exit_hold := 0.0
 
 func _ready() -> void:
+	# Keep polling/highlighting while GameInput's pause overlay has the tree
+	# paused, so the crossed Start buttons can be verified live.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(center)

@@ -15,7 +15,8 @@ both banks also present as standard gamepads — one binding set serves
 cabinet and desktop.
 
 `GameInput` is the single home for input behavior: the cabinet mapping shim,
-the `ui_exit` instant quit, dynamic player-device assignment (below), and a
+the `ui_exit` instant quit, the pause overlay (below), dynamic player-device
+assignment (below), and a
 **`map_all_inputs_to_p1`** boolean (open
 `scenes/game_input.tscn` and toggle "Map All Inputs To P1" in the Inspector,
 or set `GameInput.map_all_inputs_to_p1` at runtime). When enabled, all
@@ -25,17 +26,31 @@ joypad) is rerouted onto its matching `p1_*` action, leaving the `p2_*`
 actions silent. Toggling it releases all `p1_*`/`p2_*` pressed states, so
 players re-press after a swap.
 
+The physical panel is documented in `button-layout.jpg` (labels are
+`b<raw button>_<bank>`). Each bank has a stick and six colored buttons
+lettered on the panel: **A** yellow, **B** orange, **C** red, **D** purple,
+plus blue and green. Between the banks sit two white Start buttons (marked
+with volume icons — the launcher uses them for volume) and one black button.
+
 | Action | Cabinet | Gamepad (Xbox / DualShock) | Keyboard |
 |---|---|---|---|
 | `p1_left/right/up/down` | Left bank stick | Left stick + D-pad (device 0) | Arrow keys |
-| `p1_button1`–`p1_button4` | Left buttons 1–4 | A / B / X / Y (Cross/Circle/Square/Triangle) | Z X C V |
-| `p1_button5`, `p1_button6` | Left buttons 5–6 | LB / RB (L1 / R1) | B N |
-| `p1_start` | 1P Start | Start / Options | 1 |
-| `p2_*` | Right bank (same layout) | Same, device 1 | A D W S move, U I O J K L buttons, 2 start |
-| `ui_exit` | Select (left bank) | Back / View / Share (any device) | F10 |
+| `p1_button1`–`p1_button4` | Left A / B / C / D (yellow/orange/red/purple) | A / B / X / Y (Cross/Circle/Square/Triangle) | Z X C V |
+| `p1_button5`, `p1_button6` | Left blue / green | LB / RB (L1 / R1) | B N |
+| `p1_start` | Left white center button | Start / Options | 1 |
+| `p2_*` | Right bank (same layout); start = right white center button | Same, device 1 | A D W S move, U I O J K L buttons, 2 start |
+| `ui_exit` | Black center button | Back / View / Share (any device) | F10 |
 
 Notes:
 
+- **The white Start buttons are wired crosswise**: per `button-layout.jpg`,
+  the left white button is electrically Start (`b9`) on the *right* bank's
+  encoder half and vice versa. `GameInput` compensates automatically whenever
+  a cabinet ("Twin USB") pad is connected by binding `p1_start` to P2's
+  device and `p2_start` to P1's — so the white button on each player's side
+  is that player's start. Ordinary gamepads are unaffected; set
+  `force_cross_start_devices` (exported on `scenes/game_input.tscn`) to force
+  the crossed assignment on other hardware.
 - `GameInput` assigns joypads to players dynamically: the two lowest
   connected device ids drive `p1_*` and `p2_*` (it rewrites the device field
   of every `p1_*`/`p2_*` joypad binding — the ids in `project.godot` are
@@ -55,6 +70,24 @@ Notes:
   spec), and both keyboard sets work (arrows and WASD navigate; Enter, Space,
   Z, U accept; Escape, X, I cancel).
 
+## Pause overlay
+
+`GameInput` ships a built-in pause: pressing **Start** (either white cabinet
+button, Start on a pad, or keys 1/2) pauses the scene tree and shows a
+"PAUSED — Hold pause button for 3 seconds to quit — tap to continue" overlay.
+While it is up, tapping a Start button resumes; holding one for 3 seconds
+quits (a live countdown replaces the hint). The press that opened the overlay
+counts too, so simply holding Start for 3 seconds quits from anywhere in a
+game. `ui_exit` still quits instantly, independent of the overlay, as the
+launcher spec requires.
+
+Games that implement their own pause menu can turn this off via the exported
+**`pause_overlay_enabled`** boolean on `scenes/game_input.tscn` (or
+`GameInput.pause_overlay_enabled` at runtime). The overlay also stands down
+if something else paused the tree, and a scene can consume Start events
+before they go unhandled to keep the overlay from opening. The raw input
+debug scene disables it outright.
+
 ## Controller test scene
 
 `scenes/controller_test.tscn` (the default main scene) lists every `p1_*` and
@@ -72,7 +105,13 @@ misbehaves — wrong side, dead, or merged into the other bank's device — this
 readout tells you which device id and button/axis indices its controls
 actually emit.
 
-Quitting the test scene requires **holding `ui_exit` (Select / Back / F10) for
+The scene runs in `PROCESS_MODE_ALWAYS`, so when a Start press opens the
+pause overlay the action grid keeps updating behind the translucent dim —
+you can verify the crossed white buttons (which side lights `p1_start` vs
+`p2_start`) and the overlay's tap-to-continue / hold-to-quit behavior in the
+same place.
+
+Quitting the test scene requires **holding `ui_exit` (Black button / Back / F10) for
 3 seconds** — a footer note on screen shows the countdown. The scene consumes
 `ui_exit` events so `GameInput`'s instant quit doesn't fire there, letting
 you see the action highlight; real gameplay scenes don't intercept it, so
@@ -81,9 +120,11 @@ Replace `run/main_scene` in `project.godot` when you start building your game.
 
 ## Raw input debug scene
 
-`scenes/raw_input_debug.tscn` (**currently set as the main scene** while the
-cabinet's input wiring is being debugged) removes every connected joypad's
-SDL mapping at startup, so Godot delivers raw HID indices. It shows panels
+`scenes/raw_input_debug.tscn` (point `run/main_scene` at it temporarily when
+debugging cabinet wiring) removes every connected joypad's
+SDL mapping at startup, so Godot delivers raw HID indices. It also disables
+`GameInput`'s pause overlay for the session so nothing interferes with raw
+readouts. It shows panels
 for device ids 0–3 (plus anything else connected) whether or not Godot
 reports them — id, name, GUID, `Input.get_joy_info()`, a live `b0`–`b23`
 button grid and `a0`–`a9` axis readout polled every frame — plus a log of
@@ -104,7 +145,54 @@ bank's buttons vanishing).
 
 Quit with F10/Escape, or hold any single joypad button for 5 seconds. When
 debugging is done, point `run/main_scene` in `project.godot` back at
-`res://scenes/controller_test.tscn`.
+`res://scenes/controller_test.tscn` (the default).
+
+## Cabinet kernel quirk: splitting the merged Twin USB device
+
+The CY-1121 encoder presents both banks through one USB device, and by
+default the Linux kernel merges them into a single input device — the
+symptom is one joystick in Godot, both sticks driving P1, and the second
+bank's buttons dead. The fix is telling the kernel's HID layer to create a
+separate input device per interface (`HID_QUIRK_MULTI_INPUT`, value `0x40`).
+This is a one-time OS-level change on the cabinet (Ubuntu), not something the
+template can do from inside the game.
+
+1. Confirm the USB ID with `lsusb`. On our cabinet the encoder shows up as:
+
+   ```
+   Bus 001 Device 003: ID 0810:e001 Personal Communication Systems, Inc. Twin controller
+   ```
+
+2. Edit the kernel command line — `usbhid` is built into the Ubuntu kernel
+   (not a module), so a `/etc/modprobe.d/` options file will *not* work; the
+   quirk must go on the boot command line via GRUB:
+
+   ```bash
+   sudo nano /etc/default/grub
+   ```
+
+   Append the quirk inside the existing `GRUB_CMDLINE_LINUX_DEFAULT` quotes
+   (space-separated, `0x` prefixes required):
+
+   ```
+   GRUB_CMDLINE_LINUX_DEFAULT="quiet splash usbhid.quirks=0x0810:0xe001:0x00000040"
+   ```
+
+3. Apply and reboot:
+
+   ```bash
+   sudo update-grub
+   sudo reboot
+   ```
+
+4. Verify: `cat /proc/cmdline` should contain the `usbhid.quirks=` string,
+   and `/proc/bus/input/devices` should now list **two** "Twin USB" entries,
+   each with its own `js` handler. Then run the raw input debug scene — Godot
+   should report two devices, with the second bank emitting on device 1.
+
+(On Raspberry Pi OS the same `usbhid.quirks=...` string goes at the start of
+`/boot/cmdline.txt` instead — noted here in case the cabinet hardware ever
+changes.)
 
 ## GD_ArcadeLauncher conformance
 
