@@ -50,6 +50,13 @@ func _ready() -> void:
 	_mode_label.add_theme_font_size_override("font_size", 20)
 	main.add_child(_mode_label)
 
+	var screen_size := DisplayServer.screen_get_size()
+	var resolution_label := Label.new()
+	resolution_label.text = "Screen resolution: %d x %d" % [screen_size.x, screen_size.y]
+	resolution_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	resolution_label.add_theme_font_size_override("font_size", 20)
+	main.add_child(resolution_label)
+
 	var columns := HBoxContainer.new()
 	columns.alignment = BoxContainer.ALIGNMENT_CENTER
 	columns.add_theme_constant_override("separation", 120)
